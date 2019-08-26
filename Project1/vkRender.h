@@ -9,20 +9,20 @@ public:
 	~vkRender();
 
 
-private:
+//private:
 	void _InitInstance();
 	void _deInitInstance();
 
 	void _InitDevice();
 	void _deInitDevice();
 
-	void _setupDebug();
-	void _initDebug();
-	void _deInitDebug();
+	void _InitWindow();
+	void _deInitWindow();
 
-	VkInstance _instance = nullptr;
-	VkDevice _device = nullptr;
-	VkPhysicalDevice _gpu = nullptr;
+	VkInstance _instance = VK_NULL_HANDLE;
+	VkPhysicalDevice _gpu = VK_NULL_HANDLE;
+	VkDevice _device = VK_NULL_HANDLE;
+	VkQueue _queue = VK_NULL_HANDLE;
 	VkPhysicalDeviceProperties _gpuProperties = {};
 
 	uint32_t _graphicsFamilyIndex = 0;
@@ -30,5 +30,5 @@ private:
 	std::vector<const char*> _instanceLayer;
 	std::vector<const char*> _instanceExtension;
 
-	VkDebugReportCallbackEXT _debugReport = nullptr;
+	VkDebugReportCallbackEXT _debugReport = VK_NULL_HANDLE;
 };

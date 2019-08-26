@@ -2,31 +2,33 @@
 #include <cstdlib>
 #include <assert.h>
 #include <vector>
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
 #include "vkRender.h"
-#define VKAPI_ATTR
+
+
 
 vkRender::vkRender()
 {
-	_setupDebug();															//Creates debug profile
-	_InitInstance();														//Runs instance
-	//_initDebug();															//Debugs
+	_InitInstance();														//Runs instance															
 	_InitDevice();															//Runs device
+	_InitWindow();															//Starts window
 }
 
 
 vkRender::~vkRender()
 {
 	_deInitDevice();														//Kills device
-	//_deInitDebug();															//Kils debug profile
-	_deInitInstance();														//Kills instance 	
-}
+	_deInitInstance();														//Kills instance
+	_deInitWindow();
+}	
 
 void vkRender::_InitInstance()												//Function to initialize instance
 {
 	VkApplicationInfo applicationInfo{};
-	applicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;				//?
+	applicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;				//			???
 	applicationInfo.apiVersion = VK_MAKE_VERSION(1,0,3);					//Version of Vulkan API (1.0.3 is a work around?)
-	applicationInfo.applicationVersion = VK_MAKE_VERSION(0, 1, 0);			//This programs version			?
+	applicationInfo.applicationVersion = VK_MAKE_VERSION(0, 1, 0);			//This programs version			???
 	applicationInfo.pApplicationName = "vkRender";							//Program name
 	
 	VkInstanceCreateInfo instanceCreateInfo{};								//Info setup for instance
@@ -38,7 +40,7 @@ void vkRender::_InitInstance()												//Function to initialize instance
 	auto err = vkCreateInstance(&instanceCreateInfo, nullptr, &_instance);	//Runs instance creation function and sets "err" to error code returned
 	if (VK_SUCCESS != err)													//Quits if there is an error creating instance
 	{
-		assert(0 && "VK error: Instance creation failed");					//Assert 0 means false, causing a stop, then prints the error as defined														//Quits
+		assert(0 && "VK error: Instance creation failed");					//Assert 0 means false, causing a stop, then prints the error as defined
 	}
 }
 
@@ -55,7 +57,7 @@ void vkRender::_InitDevice()												//Creates a device
 		vkEnumeratePhysicalDevices(_instance, &gpuCount, nullptr);			//Registers devices (start)
 		std::vector<VkPhysicalDevice> gpuList(gpuCount);					//Stores the graphic devices
 		vkEnumeratePhysicalDevices(_instance, &gpuCount, gpuList.data());	//Dumps devices in (finish)
-		_gpu = gpuList[0];													//Sets graphic driver as first on list
+		_gpu = gpuList[0];													//Sets graphic driver as first on list		REVISIT 
 		vkGetPhysicalDeviceProperties(_gpu, &_gpuProperties);
 	}
 	
@@ -106,7 +108,7 @@ void vkRender::_InitDevice()												//Creates a device
 		std::cout << "\n-------------------------------------------\n";
 	}
 
-	float queuePriorities[]{ 1.0f };										//Sets which que has priority - only one is used
+	float queuePriorities[]{ 1.0f };										//Sets which que has priority - only one is used			???
 	VkDeviceQueueCreateInfo deviceQueCreateInfo{};							//Info strucuture for the GPU device
 	deviceQueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;	//Sets type of info strucuture
 	deviceQueCreateInfo.queueFamilyIndex = _graphicsFamilyIndex;			//The que family being used is set
@@ -123,71 +125,39 @@ void vkRender::_InitDevice()												//Creates a device
 	{
 		assert(0 && "VK error: Device creation falied");					//If device didn't create, stop program
 	}
+
+	vkGetDeviceQueue(_device, _graphicsFamilyIndex, 0, &_queue);
 }
 
 void vkRender::_deInitDevice()
 {
 	vkDestroyDevice(_device, nullptr);										//Destroys the device
-	_device = nullptr;														//Clears the memory for the device
+	_device = VK_NULL_HANDLE;												//Clears the memory for the device
 }
 
-VKAPI_ATTR VkBool32 VKAPI_CALL
-VulkanDebugCallback(
-	VkDebugReportFlagsEXT flags,											//Returns type of error that is reported
-	VkDebugReportObjectTypeEXT objType,										//Type of object that caused the error
-	uint64_t srcObj,														//Pointer to object that caused error
-	size_t location,														//Unknown?
-	int32_t msgCode,														//Unknown? how important error is?
-	const char * layerPrefix,												//Which layer called this debug callback
-	const char * msg,														//The error
-	void * userData)														//Not used (yet!)
+void vkRender::_InitWindow()
 {
-	std::cout << msg << std::endl;
-	return false;
-}
-
-void vkRender::_setupDebug()
-{
-	_instanceLayer.push_back("VK_LAYER_LUNARG_standard_validation");		//Loads all layers
-	_instanceLayer.push_back("VK_LAYER_LUNARG_object_tracker");				//Loads object tracker layer
-	
-	_instanceExtension.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);		//Loads debug extension
-}
-
-PFN_vkCreateDebugReportCallbackEXT fvkCreateDebugCallbackEXT = nullptr;		//Creates a debug object globally
-PFN_vkDestroyDebugReportCallbackEXT fvkDestroyDebugCallbackEXT = nullptr;	//Destroys debug object globally
-
-void vkRender::_initDebug()
-{
-	fvkCreateDebugCallbackEXT = (PFN_vkCreateDebugReportCallbackEXT) vkGetInstanceProcAddr(_instance, "vkCreateDebugReportCallbackEXT");//Sets up type of variables in debug object
-	fvkDestroyDebugCallbackEXT = (PFN_vkDestroyDebugReportCallbackEXT)vkGetInstanceProcAddr(_instance, "vkDestroyDebugReportCallbackEXT");//Sets up type of variables in debug object
-	std::cout << "Funked object: " << fvkCreateDebugCallbackEXT << std::endl;
-	if (nullptr == fvkCreateDebugCallbackEXT || nullptr == fvkDestroyDebugCallbackEXT)//Determines that both debug objects are correctly set
-	{	
-		assert(0 && "VK error: cannot grab debug function pointers.");		//If device didn't create, stop program
+	if (!glfwInit())														//Loads GLFW library for usage
+	{
+		assert(0 && "GLFW error: library init failed");						//Kills program if GLFW cannot initialize
 	}
-	
-	VkDebugReportCallbackCreateInfoEXT debugCallbackCreateInfo{};			//Creates info structure for debug object
-	debugCallbackCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT;//Sets type of info structure
-	debugCallbackCreateInfo.pfnCallback = VulkanDebugCallback;
-	debugCallbackCreateInfo.flags =
-		VK_DEBUG_REPORT_INFORMATION_BIT_EXT |
-		VK_DEBUG_REPORT_WARNING_BIT_EXT |
-		VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT |
-		VK_DEBUG_REPORT_ERROR_BIT_EXT |
-		VK_DEBUG_REPORT_DEBUG_BIT_EXT |
-		VK_DEBUG_REPORT_FLAG_BITS_MAX_ENUM_EXT |
-		0;
+	GLFWwindow* window = glfwCreateWindow(640, 480, "ClosedWorld", NULL, NULL);//Parameters of the window to be created
+	if(!window)
+	{
+		assert(0 && "GLFW error: window not created");						//Kills program if window isn't set
+	}
+	VkSurfaceKHR glfwSurface;
+	VkResult surface = glfwCreateWindowSurface(_instance, window, NULL, &glfwSurface);
+	if (!surface)
+	{
+		assert(0 && "GLFW error: surface not created");
+	}
 
-
-
-	
-	fvkCreateDebugCallbackEXT(_instance, &debugCallbackCreateInfo, nullptr, &_debugReport);
-	//vkCreateDebugReportCallbackEXT(_instance, nullptr, nullptr, nullptr);
 }
 
-void vkRender::_deInitDebug()
+void vkRender::_deInitWindow()
 {
-	fvkDestroyDebugCallbackEXT(_instance, _debugReport, nullptr);
-	_debugReport = nullptr;
+	//glfwDestroyWindow(window);
 }
+
+
